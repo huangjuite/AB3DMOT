@@ -6,7 +6,7 @@ import sys
 import time
 import numpy as np
 from xinshuo_io import load_list_from_folder, fileparts, mkdir_if_missing
-from AB3DMOT_libs.model import AB3DMOT
+from AB3DMOT_libs.model_pseudo3D import AB3DMOT
 import os
 import matplotlib
 matplotlib.use('Agg')
@@ -23,7 +23,7 @@ if __name__ == '__main__':
                   2: 'rider', 3: 'motorcycle', 4: 'bicycle'}
 
     seq_file_list, num_seq = load_list_from_folder(
-        os.path.join('data/KITTI', result_sha))
+        os.path.join('data/filtered_3d', result_sha))
     total_time, total_frames = 0.0, 0
     save_dir = os.path.join(save_root, result_sha)
     mkdir_if_missing(save_dir)
@@ -38,7 +38,7 @@ if __name__ == '__main__':
         mkdir_if_missing(save_trk_dir)
 
         mot_tracker = AB3DMOT()
-        # load detections, N x 15
+        # load detections, N x 14
         seq_dets = np.loadtxt(seq_file, delimiter=',')
 
         # if no detection in a sequence
@@ -67,8 +67,8 @@ if __name__ == '__main__':
             other_array = seq_dets[seq_dets[:, 0] == frame, 1:7]
             additional_info = np.concatenate((ori_array, other_array), axis=1)
 
-            # h, w, l, x, y, z, theta in camera coordinate follwing KITTI convention
-            dets = seq_dets[seq_dets[:, 0] == frame, 7:14]
+            # x, y, z, stdx, stdy, stdz in camera coordinate follwing KITTI convention
+            dets = seq_dets[seq_dets[:, 0] == frame, 7:13]
             dets_all = {'dets': dets, 'info': additional_info}
 
             # important
@@ -79,28 +79,27 @@ if __name__ == '__main__':
 
             # saving results, loop over each tracklet
             for d in trackers:
-                # h, w, l, x, y, z, theta in camera coordinate
-                bbox3d_tmp = d[0:7]
-                id_tmp = d[7]
-                ori_tmp = d[8]
-                type_tmp = det_id2str[d[9]]
-                bbox2d_tmp_trk = d[10:14]
-                conf_tmp = d[14]
+                # x, y, z, stdx, stdy, stdzs in camera coordinate
+                pseudo_3d = d[0:6]
+                id_tmp = d[6]
+                ori_tmp = d[7]
+                type_tmp = det_id2str[d[8]]
+                bbox2d_tmp_trk = d[9:13]
+                conf_tmp = d[13]
 
                 # save in detection format with track ID, can be used for dection evaluation and tracking visualization
-                str_to_srite = '%s -1 -1 %f %f %f %f %f %f %f %f %f %f %f %f %f %d\n' % (type_tmp, ori_tmp,
-                                                                                         bbox2d_tmp_trk[0], bbox2d_tmp_trk[
-                                                                                             1], bbox2d_tmp_trk[2], bbox2d_tmp_trk[3],
-                                                                                         bbox3d_tmp[0], bbox3d_tmp[1], bbox3d_tmp[2], bbox3d_tmp[3], bbox3d_tmp[4], bbox3d_tmp[5], bbox3d_tmp[6], conf_tmp, id_tmp)
+                str_to_srite = '%s -1 -1 %f %f %f %f %f %f %f %f %f %f %f %f %d\n' % \
+                    (type_tmp, ori_tmp, bbox2d_tmp_trk[0], bbox2d_tmp_trk[1], bbox2d_tmp_trk[2], bbox2d_tmp_trk[3], pseudo_3d[0],
+                     pseudo_3d[1], pseudo_3d[2], pseudo_3d[3], pseudo_3d[4], pseudo_3d[5], conf_tmp, id_tmp)
                 save_trk_file.write(str_to_srite)
 
                 # save in tracking format, for 3D MOT evaluation
-                str_to_srite = '%d %d %s 0 0 %f %f %f %f %f %f %f %f %f %f %f %f %f\n' % (frame, id_tmp,
-                                                                                          type_tmp, ori_tmp, bbox2d_tmp_trk[0], bbox2d_tmp_trk[
-                                                                                              1], bbox2d_tmp_trk[2], bbox2d_tmp_trk[3],
-                                                                                          bbox3d_tmp[0], bbox3d_tmp[1], bbox3d_tmp[2], bbox3d_tmp[
-                                                                                              3], bbox3d_tmp[4], bbox3d_tmp[5], bbox3d_tmp[6],
-                                                                                          conf_tmp)
+                str_to_srite = '%d %d %s 0 0 %f %f %f %f %f %f %f %f %f %f %f %f\n' % (frame, id_tmp,
+                                                                                       type_tmp, ori_tmp, bbox2d_tmp_trk[0], bbox2d_tmp_trk[
+                                                                                           1], bbox2d_tmp_trk[2], bbox2d_tmp_trk[3],
+                                                                                       pseudo_3d[0], pseudo_3d[1], pseudo_3d[2], pseudo_3d[
+                                                                                           3], pseudo_3d[4], pseudo_3d[5],
+                                                                                       conf_tmp)
                 eval_file.write(str_to_srite)
 
             total_frames += 1
