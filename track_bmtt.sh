@@ -10,5 +10,5 @@
 # python main.py bmtt_13_rider
 # python main.py bmtt_13_car
 
-python main.py bmtt12
-python main.py bmtt13
+python main_pseudo3D.py 12
+python main_pseudo3D.py 13

@@ -6,8 +6,6 @@ import math
 from scipy.optimize import linear_sum_assignment
 from AB3DMOT_libs.kalman_filter import KalmanPseudo3DTracker
 
-# TODO
-
 
 def association_score(det, trk):
     # object location similarity
@@ -19,7 +17,7 @@ def association_score(det, trk):
     return ols
 
 
-def associate_detections_to_trackers(detections, trackers, iou_threshold=0.01):
+def associate_detections_to_trackers(detections, trackers, score_threshold=0.2):
     """
     Assigns detections to tracked object (both represented as bounding boxes)
 
@@ -28,9 +26,6 @@ def associate_detections_to_trackers(detections, trackers, iou_threshold=0.01):
 
     Returns 3 lists of matches, unmatched_detections and unmatched_trackers
     """
-    print('------------')
-    print(detections)
-    print(trackers)
     
     if (len(trackers) == 0):
         return np.empty((0, 2), dtype=int), np.arange(len(detections)), np.empty((0, 6), dtype=int)
@@ -42,7 +37,7 @@ def associate_detections_to_trackers(detections, trackers, iou_threshold=0.01):
             # det: 6, trk: 6
             score_matrix[d, t] = association_score(det, trk)
 
-    print(score_matrix)
+    
     # hungarian algorithm
     row_ind, col_ind = linear_sum_assignment(-score_matrix)
     matched_indices = np.stack((row_ind, col_ind), axis=1)
@@ -59,7 +54,7 @@ def associate_detections_to_trackers(detections, trackers, iou_threshold=0.01):
     # filter out matched with low IOU
     matches = []
     for m in matched_indices:
-        if (iou_matrix[m[0], m[1]] < iou_threshold):
+        if (score_matrix[m[0], m[1]] < score_threshold):
             unmatched_detections.append(m[0])
             unmatched_trackers.append(m[1])
         else:
@@ -130,7 +125,7 @@ class AB3DMOT(object):			  # A baseline of 3D multi-object tracking
             self.trackers.append(trk)
         i = len(self.trackers)
         for trk in reversed(self.trackers):
-            d = trk.get_state()      # bbox location
+            d = trk.get_state()      
             if ((trk.time_since_update < self.max_age) and (trk.hits >= self.min_hits or self.frame_count <= self.min_hits)):
                 # +1 as MOT benchmark requires positive
                 ret.append(np.concatenate(
